@@ -1,0 +1,125 @@
+# ============================================================================
+# DPS-RF MAR Configuration
+# Diffusion Posterior Sampling with Rectified Flow
+#
+# CUDA_VISIBLE_DEVICES=2 python mar_pnp_rf.py --config ./config/MAR_pnp_rf.yaml
+# ============================================================================
+#
+# Core principle:
+#   Sample from the posterior p(x|y) instead of using alternating PnP optimization.
+#   Inject the likelihood gradient at every RF ODE step:
+#     z_{t+dt} = z_t + v(z_t,t)·dt - ζ(t)·∇_{z_t} ||Tr·(FP(x̂₀)-S_known)||² · dt
+#
+# Key advantages:
+#   - No mixing coefficient or repeated noise/denoise cycle
+#   - Data consistency is integrated into the ODE trajectory without disrupting the data manifold
+#   - guidance_scale is the only key hyperparameter and has a clear physical meaning
+# ============================================================================
+
+# ---- Model ----
+model_name: JiT-B/16
+image_size: 512
+in_channels: 1
+model_path: /Data2/huxiaowan/ysq/RefineFlow-MAR/model/checkpoint-step0240000.pth
+
+# ---- Core DPS-RF parameters ----
+
+# Number of ODE steps (more is more accurate; 100 is usually sufficient)
+num_steps: 200
+
+# ODE solver: 'heun' (second order, more accurate) or 'euler' (first order, twice as fast)
+# Heun evaluates the model twice per step but substantially improves ODE trajectory accuracy.
+sampling_method: heun
+
+# Guidance strength (the only key hyperparameter)
+# Physical meaning: L2 norm of each DPS correction after normalizing the gradient.
+#   Too small -> residual artifacts because the prior overwhelms the observation.
+#   Too large -> overcorrection and possible instability because the likelihood dominates.
+#   Recommended range: 1.0 to 10.0; start tuning from 5.0.
+guidance_scale: 10.0
+
+# Guidance schedule over time
+#   'linear': zeta(t) = guidance_scale * t (recommended; weak early, strong late)
+#   'constant': zeta(t) = guidance_scale (constant strength throughout)
+#   'cosine': slow start followed by rapid growth
+guidance_schedule: linear
+
+# Guidance start time; disable guidance below this value because x0 estimates are poor.
+start_guidance_at: 0.05
+
+# Upper bound for zeta to prevent excessive late-stage guidance near t=1.
+# The dc_loss rebound at step 99 in earlier logs was caused by zeta=4.95 being too large.
+max_zeta: 4.0
+
+noise_scale: 1.0
+
+# ---- Gradient mode ----
+# 'full': gradient with respect to z_t, backpropagated through the model (exact, more VRAM)
+# 'approx': gradient with respect to x0, backpropagated only through FP (approximate, less VRAM)
+# Use 'approx' when VRAM is limited; otherwise 'full' is recommended.
+grad_mode: full
+
+# ---- Initialization ----
+# 'noise': start from pure noise (standard DPS and more steps)
+# 'xli_blend': start from an XLI/noise blend (recommended; anatomy is already known)
+init_mode: xli_blend
+init_t: 0.5                  # Start time: 0.3 = 30% XLI + 70% noise; recommended range 0.2-0.5
+
+# ---- Post-processing: detail recovery ----
+# DPS output is artifact-free but blurry, so post-processing restores detail.
+#
+# 'none':         no post-processing (cleanest but blurriest)
+# 'sino_replace': one-step sinogram replacement plus FBP (sharpest, but may add artifacts)
+# 'gradient_dc':  progressive gradient refinement (recommended balance)
+#                 Gradually inject sinogram detail through gradient descent from the DPS output.
+#                 Avoids FBP and its abrupt streak artifacts.
+# 'hybrid_mask':  hybrid mask mode (recommended)
+#                 Dilate the metal mask final_mask_dilate times to define the repair region.
+#                 Inside mask: progressive gradient_dc repair for metal/artifact regions.
+#                 Outside mask: one-step sino_replace for normal tissue.
+#                 Combines smooth metal regions with sharp normal tissue.
+final_refine_mode: hybrid_mask
+
+# Metal-mask dilation count (hybrid_mask mode only)
+#   Each 3x3 dilation expands the mask by approximately one pixel.
+#   Recommended range: 3 to 15, depending on artifact spread.
+#   5 iterations expand about 5 px and cover nearby streaks.
+#   10 iterations expand about 10 px and suit larger metal objects.
+final_mask_dilate: 5
+
+# hybrid_mask construction strategy:
+#   'original': use only image-domain metal-mask dilation.
+#   'projection_augmented': combine the dilated image mask with uncertain regions
+#                           backprojected from the sinogram metal trace.
+hybrid_mask_mode: projection_augmented
+
+# Used only when hybrid_mask_mode='projection_augmented':
+# Dilate the metal trace in sinogram space before unfiltered backprojection.
+hybrid_proj_dilate: 3
+
+# Used only when hybrid_mask_mode='projection_augmented':
+# Backprojection risk-map threshold; lower values mark more regions as uncertain.
+hybrid_proj_threshold: 0.3
+
+# Used only when hybrid_mask_mode='projection_augmented':
+# Save the effective hybrid mask under save_dir/hybrid_masks.
+save_hybrid_mask: False
+
+# Gradient-refinement steps (gradient_dc mode only)
+#   Fewer steps (20) favor DPS: clean but slightly blurry.
+#   More steps (100) favor data consistency: sharp with possible mild artifacts.
+#   Start at 50 and tune based on the result.
+final_dc_steps: 200
+
+# Maximum per-pixel correction per step after max-normalizing the gradient
+#   0.005 -> conservative and safer
+#   0.01  -> moderate (recommended)
+#   0.02  -> aggressive and faster, but potentially unstable
+final_dc_eta: 0.01
+
+# ---- Test data ----
+data_path: /Data2/huxiaowan/ysq/RefineFlow-MAR/test_data/oral_ct
+inner_dir: test_720geo/
+num_test_image: 1
+num_test_mask: 10
+save_dir: ./test_results_dps_rf

@@ -1,0 +1,47 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Build and package artifacts
+build/
+dist/
+*.egg-info/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Model checkpoints are distributed separately
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+
+# Experiment logs and generated inspection output
+runs/
+logs/
+wandb/
+h5_inspection_output/
+h5_hu_output/
+
+# Local backups and release staging directories
+*_before_*/
+*.bak
+.github-public/
+

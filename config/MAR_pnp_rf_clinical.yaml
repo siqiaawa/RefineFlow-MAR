@@ -1,0 +1,69 @@
+# ============================================================================
+# DPS-RF MAR Configuration - Clinical Data Mode
+# Diffusion Posterior Sampling with Rectified Flow
+#
+# CUDA_VISIBLE_DEVICES=3 python mar_pnp_rf.py --config ./config/MAR_pnp_rf_clinical.yaml
+#
+# Prerequisite: generate the clinical data with generate_clinical_data.py.
+#   python generate_clinical_data.py \
+#       --input_dir /path/to/clinical_ct_images \
+#       --output_dir ./test_data/clinical
+# ============================================================================
+
+# ---- Model ----
+model_name: JiT-B/16
+image_size: 512
+in_channels: 1
+model_path: /Data2/huxiaowan/yxh/DuDoDp-JiT-fixed-CBCT/runs/jit_b16_1ch_rf_fp32_cbct/checkpoint-step0240000.pth
+
+# ---- Core DPS-RF parameters ----
+num_steps: 200
+sampling_method: heun
+guidance_scale: 10.0
+guidance_schedule: linear
+guidance_decay_power: 2.0
+guidance_decay_gamma: 3.0
+guidance_hold_ratio: 0.2
+guidance_floor_ratio: 0.0
+start_guidance_at: 0.05
+max_zeta: 4.0
+noise_scale: 1.0
+grad_mode: full
+
+# ---- Initialization ----
+init_mode: xli_blend
+init_t: 0.5
+
+# ---- Post-processing ----
+final_refine_mode: hybrid_mask
+final_mask_dilate: 5
+hybrid_mask_mode: original
+hybrid_proj_dilate: 3
+hybrid_proj_threshold: 0.15
+save_hybrid_mask: False
+final_dc_steps: 200
+final_dc_eta: 0.01
+
+# ---- Clinical data settings ----
+# data_mode: 'clinical' selects the test_image_clinical loader.
+#   - No ground truth; Xma/Sma stand in for Xgt/Sgt without affecting inference.
+#   - Each image has one mask, extracted by generate_clinical_data.py.
+#   - num_test_mask is ignored in clinical mode.
+data_mode: clinical
+
+# output_dir produced by generate_clinical_data.py
+data_path: /Data2/huxiaowan/ysq/repaint/DuDoDp-MAR-phys/test_data/clinical
+inner_dir: test_720geo/
+
+# Number of images; must match the number processed by generate_clinical_data.py.
+num_test_image: 10
+# Ignored in clinical mode because each image has only one mask.
+num_test_mask: 1
+
+# ---- HU window normalization for PNG output (recommended for dental CT) ----
+use_hu_window: True   # Normalize PNG output with a fixed HU window.
+hu_min: -1000.0       # Lower HU bound (default: -1000, air/soft tissue)
+hu_max: 3000.0        # Upper HU bound (default: 3000, metal/high-density bone)
+
+# Result directory; filenames use %03d.png without a mask-index suffix.
+save_dir: ./test_results_clinical

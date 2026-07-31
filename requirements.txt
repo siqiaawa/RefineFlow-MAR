@@ -1,0 +1,20 @@
+argparse
+astra-toolbox
+blobfile
+einops
+h5py
+imageio
+matplotlib
+mpi4py
+numpy
+odl==0.8.3
+opencv-python-headless
+Pillow
+pyyaml
+scipy
+torch
+torchvision
+tqdm
+
+# Linux/CUDA extension. Install after a CUDA-enabled PyTorch is available.
+torch-radon @ git+https://github.com/matteo-ronchetti/torch-radon.git@c1d3af21a64f4c97e74d37472dccda2294b65ae2
