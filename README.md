@@ -64,7 +64,6 @@ RefineFlow-MAR/
 |-- inspect_h5_hu.py
 |-- calculate_psnr_ssim.py
 |-- requirements.txt
-|-- THIRD_PARTY_NOTICES.md
 |-- LICENSE
 `-- README.md
 ```
@@ -94,8 +93,7 @@ python -m pip install -r requirements.txt
 ```
 
 `torch-radon` is installed from a pinned Git commit and builds a CUDA
-extension. The dependency is licensed under GPL-3.0; see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+extension.
 
 Most package versions are intentionally not pinned because CUDA servers
 require compatible PyTorch, torchvision, compiler, and driver combinations.
@@ -140,9 +138,8 @@ The H5 datasets use these fields:
 - `test_720geo_dir.txt`: relative paths to ground-truth H5 files.
 
 The included H5 files use the anonymous identifier `patient_0000` and do not
-contain patient or author attributes. Users remain responsible for verifying
-the redistribution rights and de-identification status of any replacement
-data.
+contain patient or author attributes. Users are responsible for any replacement
+data they provide.
 
 ## Intended Inference Configuration
 
@@ -234,10 +231,6 @@ Average PSNR: 43.1287 dB
 Average SSIM: 0.9833
 ```
 
-These values use the script's existing protocol: OpenCV `IMREAD_COLOR`
-decoding followed by Y-channel metrics on the `[0, 255]` range. They are not
-native 16-bit grayscale metrics.
-
 ## Clinical Data Format
 
 `config/MAR_pnp_rf_clinical.yaml` documents the clinical H5 layout expected
@@ -267,27 +260,6 @@ truth. The external clinical data-preparation workflow is not included.
 - The final inference and data-generation entry points are intentionally
   withheld from this initial public snapshot.
 
-## Methods and Software Provenance
-
-The project uses or adapts ideas and software from:
-
-| Component | Role | Upstream license |
-| --- | --- | --- |
-| JiT / SiT / LightningDiT | Rectified-flow transformer architecture and utilities | MIT |
-| Diffusion Posterior Sampling | Projection-domain likelihood guidance method | Paper/method citation |
-| DDIM | Sampling utilities | MIT |
-| OpenAI guided-diffusion | Neural-network utilities | MIT |
-| SwinIR | PSNR, SSIM, and color-conversion utilities | Apache-2.0 |
-| Torch Radon | Differentiable fan-beam projection | GPL-3.0 |
-| ODL and ASTRA Toolbox | CT geometry and CUDA reconstruction operators | MPL-2.0 / GPL-3.0 |
-| DuDoDp-MAR | H5 data conventions and geometry provenance | No explicit upstream repository license |
-
-Exact repositories, affected files, copyright notices, and license caveats are
-recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-The Diffusion Posterior Sampling and Rectified Flow method citations will be
-listed together with the RefineFlow-MAR paper citation in the final release.
-
 ## Citation
 
 The associated paper has not yet been published. Citation metadata and BibTeX
@@ -295,15 +267,7 @@ will be added after publication.
 
 ## License
 
-Original RefineFlow-MAR contributions are released under the
-[GNU General Public License v3.0](LICENSE), except where a file or component is
-identified as third-party material under different terms.
-
-Third-party components remain subject to their original licenses and copyright
-notices. In particular, the upstream DuDoDp-MAR and
-`hojonathanho/diffusion` repositories did not expose an explicit license when
-checked on 2026-07-31; this repository does not purport to relicense their
-material. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before
-redistributing derived files.
+RefineFlow-MAR is released under the
+[GNU General Public License v3.0](LICENSE).
 
 Copyright (C) 2026 RefineFlow-MAR authors.
