@@ -16,12 +16,14 @@ The following artifacts are intentionally not included in this snapshot:
   withheld until a later release.
 - `generate_pair_data.py` is a public placeholder; the final synthetic-data
   generation implementation is withheld until a later release.
+- `train_rectified_flow.py` is a public placeholder; the final training entry
+  point will be released after publication of the associated paper.
 - The pretrained JiT checkpoint is distributed separately and is not currently
   available from this repository.
 - The paper citation will be added after publication.
 
-As a result, this snapshot documents the intended workflow but does not yet
-provide a complete end-to-end inference command.
+As a result, this snapshot documents the intended workflows but does not yet
+provide complete end-to-end training or inference commands.
 
 ## Method Overview
 
@@ -43,7 +45,8 @@ pixels outside that region use one-step sinogram replacement.
 RefineFlow-MAR/
 |-- config/
 |   |-- MAR_pnp_rf.yaml
-|   `-- MAR_pnp_rf_clinical.yaml
+|   |-- MAR_pnp_rf_clinical.yaml
+|   `-- train_JiT_B16_1ch_rf_fp32_cbct.yaml
 |-- data_dependancy/metal_masks/
 |-- geometry/
 |   |-- build_gemotry.py
@@ -60,6 +63,7 @@ RefineFlow-MAR/
 |-- utils/
 |-- mar_pnp_rf.py                        # Public-release placeholder
 |-- generate_pair_data.py                # Public-release placeholder
+|-- train_rectified_flow.py               # Public-release placeholder
 |-- inspect_h5_data.py
 |-- inspect_h5_hu.py
 |-- calculate_psnr_ssim.py
@@ -99,6 +103,20 @@ Most package versions are intentionally not pinned because CUDA servers
 require compatible PyTorch, torchvision, compiler, and driver combinations.
 For strict reproduction, record the working server environment with
 `python -m pip freeze` and the CUDA/PyTorch version information.
+
+## Training
+
+The repository includes the single-channel JiT rectified-flow model components
+and the intended training configuration in
+[config/train_JiT_B16_1ch_rf_fp32_cbct.yaml](config/train_JiT_B16_1ch_rf_fp32_cbct.yaml).
+The configuration records the model architecture, preprocessing mode,
+optimization settings, EMA parameters, and checkpoint directory used by the
+project.
+
+The complete training entry point is not included in this initial snapshot.
+`train_rectified_flow.py` is intentionally a placeholder and should not be
+treated as an executable training workflow. It will be replaced after
+publication of the associated paper.
 
 ## Model Checkpoint
 
@@ -257,8 +275,8 @@ truth. The external clinical data-preparation workflow is not included.
   substantial GPU memory.
 - The packaged outputs are examples associated with the included synthetic
   data, not a complete benchmark report.
-- The final inference and data-generation entry points are intentionally
-  withheld from this initial public snapshot.
+- The final training, inference, and data-generation entry points are
+  intentionally withheld from this initial public snapshot.
 
 ## Citation
 

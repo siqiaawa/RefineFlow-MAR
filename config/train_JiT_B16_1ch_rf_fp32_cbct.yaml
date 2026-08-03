@@ -1,0 +1,39 @@
+# Rectified-flow training configuration for the single-channel CBCT prior.
+# Set data_dir to the directory containing the training PNG/JPG/JPEG files.
+
+data_dir: /path/to/training/images
+ct_preprocess: uint8_linear
+num_workers: 16
+random_flip: true
+
+model_name: JiT-B/16
+image_size: 512
+in_channels: 1
+num_classes: 1000
+attn_drop: 0.0
+proj_drop: 0.0
+
+P_mean: -0.8
+P_std: 0.8
+noise_scale: 1.0
+t_eps: 0.05
+label_drop_prob: 0.1
+
+epochs: 900
+batch_size: 16
+lr: 5.0e-5
+weight_decay: 0.0
+ema_decay1: 0.9999
+ema_decay2: 0.9996
+warmup_epochs: 5
+
+sampling_method: heun
+num_sampling_steps: 50
+cfg_scale: 1.0
+interval_min: 0.0
+interval_max: 1.0
+
+log_freq: 100
+save_freq: 5000
+resume: ""
+output_dir: ./runs/jit_b16_1ch_rf_fp32_cbct
