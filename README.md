@@ -276,15 +276,6 @@ python calculate_psnr_ssim.py
 It supports one-to-one matching when result and GT counts are equal, and
 many-to-one matching when multiple results share one GT.
 
-Using the packaged `test_results_dps_rf/` and `test_data/gtdata/`, the
-current script reports:
-
-```text
-Total comparisons: 10
-Average PSNR: 43.1287 dB
-Average SSIM: 0.9833
-```
-
 ## Clinical Data Format
 
 `config/MAR_pnp_rf_clinical.yaml` documents the clinical H5 layout expected
