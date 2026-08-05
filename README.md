@@ -3,13 +3,6 @@
 # RefineFlow-MAR: Physics-Guided Unsupervised CBCT Metal Artifact Reduction
 
 <p>
-  Xiaowan Hu<sup>*</sup> &middot; Siqi Ying<sup>*</sup> &middot; Xinhao Yuan &middot;
-  Taohan Weng &middot; Lai Jiang &middot; Chun Yi &middot; Mai Xu
-</p>
-
-<p><sup>*</sup> Equal contribution</p>
-
-<p>
   <img alt="Python" src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white"/>
   <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-CUDA-ee4c2c?logo=pytorch&logoColor=white"/>
   <img alt="CUDA" src="https://img.shields.io/badge/Compute-NVIDIA%20CUDA-76b900?logo=nvidia&logoColor=white"/>
@@ -80,29 +73,6 @@ The following artifacts are intentionally not included in this snapshot:
 
 As a result, this snapshot documents the intended workflows but does not yet
 provide complete end-to-end training or inference commands.
-
-## Method Overview
-
-The intended inference pipeline combines:
-
-1. A single-channel JiT rectified-flow image prior.
-2. DPS-style likelihood guidance from the measured sinogram.
-3. Differentiable fan-beam projection and backprojection using Torch Radon.
-4. Optional post-processing with sinogram replacement, gradient
-   data-consistency refinement, or hybrid-mask refinement.
-
-The included default configuration selects `hybrid_mask` refinement. Pixels
-inside the estimated metal/artifact region are progressively refined, while
-pixels outside that region use one-step sinogram replacement.
-
-## Results Reported in the Manuscript
-
-The current manuscript draft reports the following average performance:
-
-| Dataset | PSNR (dB) | SSIM |
-| --- | ---: | ---: |
-| Simulated dental CBCT | **43.21** | **0.9838** |
-| DeepLesion benchmark | **44.48** | **0.9877** |
 
 ## Repository Layout
 
