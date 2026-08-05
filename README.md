@@ -1,7 +1,63 @@
-# RefineFlow-MAR
+<div align="center">
 
-Research code for metal artifact reduction (MAR) in dental CT using a
-rectified-flow image prior and projection-domain data consistency.
+# RefineFlow-MAR: Physics-Guided Unsupervised CBCT Metal Artifact Reduction
+
+<p>
+  Xiaowan Hu<sup>*</sup> &middot; Siqi Ying<sup>*</sup> &middot; Xinhao Yuan &middot;
+  Taohan Weng &middot; Lai Jiang &middot; Chun Yi &middot; Mai Xu
+</p>
+
+<p><sup>*</sup> Equal contribution</p>
+
+<p>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white"/>
+  <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-CUDA-ee4c2c?logo=pytorch&logoColor=white"/>
+  <img alt="CUDA" src="https://img.shields.io/badge/Compute-NVIDIA%20CUDA-76b900?logo=nvidia&logoColor=white"/>
+  <img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-2f855a"/>
+  <img alt="Release" src="https://img.shields.io/badge/Release-Initial%20Snapshot-555555"/>
+</p>
+
+<p>
+  <b>Paper:</b> Manuscript &nbsp;|&nbsp;
+  <b>Task:</b> Dental CBCT Metal Artifact Reduction
+</p>
+
+RefineFlow-MAR learns an anatomical rectified-flow prior from unpaired clean
+CBCT and couples it with continuous projection-domain physical guidance.
+
+</div>
+
+---
+
+## Visual Results
+
+The moving divider reveals the RefineFlow-MAR reconstruction on the left while
+retaining the metal-affected input on the right.
+
+<table>
+  <tr>
+    <th align="center">Case 1</th>
+    <th align="center">Case 2</th>
+    <th align="center">Case 3</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/demos/case_01.gif" width="260" alt="RefineFlow-MAR result for dental CBCT case 1"/></td>
+    <td align="center"><img src="assets/demos/case_02.gif" width="260" alt="RefineFlow-MAR result for dental CBCT case 2"/></td>
+    <td align="center"><img src="assets/demos/case_03.gif" width="260" alt="RefineFlow-MAR result for dental CBCT case 3"/></td>
+  </tr>
+</table>
+
+## Highlights
+
+- **Unpaired anatomical prior:** learns the clean CBCT distribution without
+  requiring paired metal-corrupted and artifact-free scans.
+- **Continuous physics guidance:** injects reliability-masked Radon-domain
+  gradients throughout the rectified-flow trajectory instead of applying a
+  single hard projection correction.
+- **Risk-aware refinement:** combines gradient correction near unreliable
+  regions with sinogram replacement in reliable anatomy.
+- **Dual-domain consistency:** balances artifact suppression, anatomical
+  plausibility, and fidelity to the measured projections.
 
 ## Release Status
 
@@ -39,10 +95,20 @@ The included default configuration selects `hybrid_mask` refinement. Pixels
 inside the estimated metal/artifact region are progressively refined, while
 pixels outside that region use one-step sinogram replacement.
 
+## Results Reported in the Manuscript
+
+The current manuscript draft reports the following average performance:
+
+| Dataset | PSNR (dB) | SSIM |
+| --- | ---: | ---: |
+| Simulated dental CBCT | **43.21** | **0.9838** |
+| DeepLesion benchmark | **44.48** | **0.9877** |
+
 ## Repository Layout
 
 ```text
 RefineFlow-MAR/
+|-- assets/demos/                         # Animated visual comparisons
 |-- config/
 |   |-- MAR_pnp_rf.yaml
 |   |-- MAR_pnp_rf_clinical.yaml
