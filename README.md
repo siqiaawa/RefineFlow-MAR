@@ -7,7 +7,6 @@
   <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-CUDA-ee4c2c?logo=pytorch&logoColor=white"/>
   <img alt="CUDA" src="https://img.shields.io/badge/Compute-NVIDIA%20CUDA-76b900?logo=nvidia&logoColor=white"/>
   <img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-2f855a"/>
-  <img alt="Release" src="https://img.shields.io/badge/Release-Initial%20Snapshot-555555"/>
 </p>
 
 <p>
@@ -52,28 +51,6 @@ retaining the metal-affected input on the right.
 - **Dual-domain consistency:** balances artifact suppression, anatomical
   plausibility, and fidelity to the measured projections.
 
-## Release Status
-
-This repository is an initial public snapshot prepared before publication of
-the associated paper. It includes the supporting model architecture, solver,
-geometry and data-loading modules, evaluation tools, a small synthetic test
-set, and example outputs.
-
-The following artifacts are intentionally not included in this snapshot:
-
-- `mar_pnp_rf.py` is a public placeholder; the final inference entry point is
-  withheld until a later release.
-- `generate_pair_data.py` is a public placeholder; the final synthetic-data
-  generation implementation is withheld until a later release.
-- `train_rectified_flow.py` is a public placeholder; the final training entry
-  point will be released after publication of the associated paper.
-- The pretrained JiT checkpoint is distributed separately and is not currently
-  available from this repository.
-- The paper citation will be added after publication.
-
-As a result, this snapshot documents the intended workflows but does not yet
-provide complete end-to-end training or inference commands.
-
 ## Repository Layout
 
 ```text
@@ -97,9 +74,9 @@ RefineFlow-MAR/
 |   `-- oral_ct/                        # Included synthetic test data
 |-- test_results_dps_rf/                 # Included example outputs
 |-- utils/
-|-- mar_pnp_rf.py                        # Public-release placeholder
-|-- generate_pair_data.py                # Public-release placeholder
-|-- train_rectified_flow.py               # Public-release placeholder
+|-- mar_pnp_rf.py                        # DPS-RF inference entry point
+|-- generate_pair_data.py                # Synthetic-data generation
+|-- train_rectified_flow.py               # Rectified-flow training
 |-- inspect_h5_data.py
 |-- inspect_h5_hu.py
 |-- calculate_psnr_ssim.py
@@ -142,29 +119,36 @@ For strict reproduction, record the working server environment with
 
 ## Training
 
-The repository includes the single-channel JiT rectified-flow model components
-and the intended training configuration in
+Training uses the single-channel `JiT-B/16` model, FP32 arithmetic, a
+rectified-flow x-prediction objective, dual EMA parameters, and a
+linear-warmup/cosine-decay learning-rate schedule. The configuration is
 [config/train_JiT_B16_1ch_rf_fp32_cbct.yaml](config/train_JiT_B16_1ch_rf_fp32_cbct.yaml).
-The configuration records the model architecture, preprocessing mode,
-optimization settings, EMA parameters, and checkpoint directory used by the
-project.
 
-The complete training entry point is not included in this initial snapshot.
-`train_rectified_flow.py` is intentionally a placeholder and should not be
-treated as an executable training workflow. It will be replaced after
-publication of the associated paper.
+Set `data_dir` in the configuration or override it on the command line:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python train_rectified_flow.py \
+    --config ./config/train_JiT_B16_1ch_rf_fp32_cbct.yaml \
+    --data_dir /path/to/training/images
+```
+
+Resume training with:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python train_rectified_flow.py \
+    --config ./config/train_JiT_B16_1ch_rf_fp32_cbct.yaml \
+    --resume ./runs/jit_b16_1ch_rf_fp32_cbct/checkpoint-last.pth
+```
 
 ## Model Checkpoint
 
-The intended synthetic configuration expects:
+Place the pretrained checkpoint at:
 
 ```text
 model/checkpoint-step0240000.pth
 ```
 
-The checkpoint is not tracked by Git. Download instructions and a SHA-256
-checksum will be added when it is released. See
-[model/README.md](model/README.md).
+Checkpoint files are ignored by Git. See [model/README.md](model/README.md).
 
 ## Included Synthetic Data
 
@@ -195,11 +179,9 @@ The included H5 files use the anonymous identifier `patient_0000` and do not
 contain patient or author attributes. Users are responsible for any replacement
 data they provide.
 
-## Intended Inference Configuration
+## Inference
 
-The full public inference entry point is not part of this initial snapshot.
-When it is released, configure the following fields in
-`config/MAR_pnp_rf.yaml` for the target server:
+Configure these fields in `config/MAR_pnp_rf.yaml` for the target server:
 
 ```yaml
 model_path: /path/to/checkpoint-step0240000.pth
@@ -207,15 +189,12 @@ data_path: /path/to/test_data/oral_ct
 save_dir: ./test_results_dps_rf
 ```
 
-The intended invocation is:
+Run inference with:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python mar_pnp_rf.py \
     --config ./config/MAR_pnp_rf.yaml
 ```
-
-In this snapshot, `mar_pnp_rf.py` contains only a release-status placeholder,
-so the command above is documentation for the future complete release.
 
 Important configuration options include:
 
@@ -232,13 +211,16 @@ Important configuration options include:
 
 ## Synthetic Data Generation
 
-The intended generator produces DuDoDp-compatible H5 pairs using a
+The generator produces DuDoDp-compatible H5 pairs using a
 polychromatic projection model, beam-hardening correction, material
 attenuation tables, and ODL/ASTRA fan-beam geometry.
 
-The complete generator is not included in this initial snapshot.
-`generate_pair_data.py` is intentionally a placeholder and should not be
-treated as an executable data-generation workflow.
+Set `clean_dir`, `bad_dir`, and `output_dir` in `generate_pair_data.py`, then
+run:
+
+```bash
+python generate_pair_data.py
+```
 
 ## H5 Inspection
 
@@ -291,20 +273,17 @@ by the loader:
 
 Clinical H5 files should contain `ma_CT`, `ma_sinogram`, `LI_CT`,
 `LI_sinogram`, and `metal_trace`. Clinical mode does not require ground
-truth. The external clinical data-preparation workflow is not included.
+truth.
 
 ## Reproducibility Notes
 
-- YAML files retain paths from the original server environment and must be
-  updated for another server.
+- YAML files contain example server paths and must be updated for another
+  server.
 - CUDA-backed projection components are initialized during pipeline startup.
 - `grad_mode: full`, 512 x 512 images, and long refinement runs can require
   substantial GPU memory.
 - The packaged outputs are examples associated with the included synthetic
   data, not a complete benchmark report.
-- The final training, inference, and data-generation entry points are
-  intentionally withheld from this initial public snapshot.
-
 ## Citation
 
 The associated paper has not yet been published. Citation metadata and BibTeX
