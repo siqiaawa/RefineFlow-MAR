@@ -1,96 +1,94 @@
-#python calculate_psnr_ssim.py
+"""Saved-PNG PSNR/SSIM, preserving the original SwinIR/Y-channel formulas.
 
-import os
+No-argument defaults evaluate the included example results. CLI parameters
+select other GT and output directories without changing the metric protocol.
+"""
+import argparse
+import csv
+import json
+from pathlib import Path
+
 import cv2
 from utils.metrics import calculate_psnr, calculate_ssim
 
-# Sample script to calculate PSNR and SSIM metrics from saved images in two directories
-# using calculate_psnr and calculate_ssim functions from: https://github.com/JingyunLiang/SwinIR
-# Supports:
-# - If same number of GT and results: one-to-one matching by order
-# - If only 1 GT and multiple results: all results match to the single GT
+ROOT = Path(__file__).resolve().parent
+DEFAULT_GT = ROOT/'test_data/gtdata'
+DEFAULT_RESULTS = ROOT/'test_results_dps_rf'
+IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff'}
 
-gt_path = '/Data2/huxiaowan/ysq/RefineFlow-MAR/test_data/gtdata'
-results_path = '/Data2/huxiaowan/ysq/RefineFlow-MAR/test_results_dps_rf'
 
-imgsName = sorted(os.listdir(results_path))
-gtsName = sorted(os.listdir(gt_path))
+def image_files(folder):
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise FileNotFoundError(folder)
+    return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_SUFFIXES)
 
-num_results = len(imgsName)
-num_gts = len(gtsName)
 
-print(f"Found {num_results} result images and {num_gts} GT images")
+def evaluate_directories(gt_path, results_path):
+    results, gts = image_files(results_path), image_files(gt_path)
+    print(f'Found {len(results)} result images and {len(gts)} GT images')
+    if not results or not gts:
+        raise ValueError('Both directories must contain readable image files.')
+    if len(gts) == len(results):
+        pairs = list(zip(results, gts))
+        matching = 'one-to-one, sorted file order'
+    elif len(gts) == 1:
+        pairs = [(result, gts[0]) for result in results]
+        matching = 'many-to-one, single GT'
+    else:
+        raise ValueError(f'Cannot match {len(results)} results to {len(gts)} GTs: use equal counts or one GT.')
+    print('Mode:', matching)
+    rows = []
+    for result_path, gt_file in pairs:
+        # The legacy read mode: even 16-bit PNGs become 8-bit BGR.
+        result = cv2.imread(str(result_path), cv2.IMREAD_COLOR)
+        gt = cv2.imread(str(gt_file), cv2.IMREAD_COLOR)
+        if result is None or gt is None:
+            raise ValueError(f'Unreadable comparison: {result_path} / {gt_file}')
+        if result.shape != gt.shape:
+            raise ValueError(f'Shape mismatch (no resizing): {result.shape} / {gt.shape}')
+        if min(result.shape[:2]) < 11:
+            raise ValueError('SSIM needs images at least 11x11 pixels.')
+        psnr = float(calculate_psnr(result, gt, test_y_channel=True))
+        ssim = float(calculate_ssim(result, gt, test_y_channel=True))
+        rows.append({'result': result_path.name, 'gt': gt_file.name, 'psnr_db': psnr, 'ssim': ssim})
+        print(f'{result_path.name} <-> {gt_file.name}: PSNR = {psnr:.4f}, SSIM = {ssim:.4f}')
+    report = {'gt_path': str(Path(gt_path).resolve()), 'results_path': str(Path(results_path).resolve()),
+              'matching': matching, 'comparisons': rows, 'total_comparisons': len(rows),
+              'average_psnr_db': sum(r['psnr_db'] for r in rows)/len(rows),
+              'average_ssim': sum(r['ssim'] for r in rows)/len(rows),
+              'protocol': {'implementation': 'utils.metrics.calculate_psnr / calculate_ssim (unchanged)',
+                           'read_mode': 'cv2.IMREAD_COLOR, 8-bit BGR', 'opencv_version': cv2.__version__, 'test_y_channel': True,
+                           'data_range': 255, 'metal_masking': False,
+                           'region': 'whole image; SSIM uses original 11x11 valid-window support',
+                           'resizing': False}}
+    print('\nOverall Results:')
+    print(f'  Total comparisons: {len(rows)}')
+    print(f'  Average PSNR: {report["average_psnr_db"]:.4f}')
+    print(f'  Average SSIM: {report["average_ssim"]:.4f}')
+    print('  Results path:', results_path)
+    return report
 
-# Determine matching strategy
-if num_gts == num_results:
-    # One-to-one matching by order
-    print("Mode: One-to-one matching (same number of images)\n")
-    pairs = [(imgsName[i], gtsName[i]) for i in range(num_results)]
-elif num_gts == 1:
-    # All results match to single GT
-    print(f"Mode: Many-to-one matching ({num_results} results to 1 GT)\n")
-    pairs = [(imgsName[i], gtsName[0]) for i in range(num_results)]
-else:
-    print(f"Error: Cannot match {num_results} results to {num_gts} GTs")
-    print("Only supports:")
-    print("  - Same number of results and GTs (one-to-one)")
-    print("  - Multiple results to 1 GT (many-to-one)")
-    exit(1)
 
-cumulative_psnr, cumulative_ssim = 0, 0
-total_comparisons = 0
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--gt-path', default=DEFAULT_GT, type=Path)
+    parser.add_argument('--results-path', default=DEFAULT_RESULTS, type=Path)
+    parser.add_argument('--output-csv', type=Path)
+    parser.add_argument('--output-json', type=Path)
+    args = parser.parse_args(argv)
+    report = evaluate_directories(args.gt_path, args.results_path)
+    if args.output_csv:
+        args.output_csv.parent.mkdir(parents=True, exist_ok=True)
+        with args.output_csv.open('w', encoding='utf-8-sig', newline='') as handle:
+            writer = csv.DictWriter(handle, fieldnames=['result', 'gt', 'psnr_db', 'ssim'])
+            writer.writeheader()
+            writer.writerows(report['comparisons'])
+    if args.output_json:
+        args.output_json.parent.mkdir(parents=True, exist_ok=True)
+        args.output_json.write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
+    return 0
 
-# Group by GT for better output organization
-gt_groups = {}
-for result_name, gt_name in pairs:
-    if gt_name not in gt_groups:
-        gt_groups[gt_name] = []
-    gt_groups[gt_name].append(result_name)
 
-for gt_name, result_names in sorted(gt_groups.items()):
-    gt = cv2.imread(os.path.join(gt_path, gt_name), cv2.IMREAD_COLOR)
-    
-    if gt is None:
-        print(f"Error: Could not read GT image {gt_name}")
-        continue
-    
-    if len(result_names) > 1:
-        print(f'\n=== Ground Truth: {gt_name} ({len(result_names)} results) ===')
-    
-    gt_psnr_sum, gt_ssim_sum = 0, 0
-    
-    for result_name in result_names:
-        res = cv2.imread(os.path.join(results_path, result_name), cv2.IMREAD_COLOR)
-        
-        if res is None:
-            print(f"Error: Could not read result image {result_name}")
-            continue
-        
-        cur_psnr = calculate_psnr(res, gt, test_y_channel=True)
-        cur_ssim = calculate_ssim(res, gt, test_y_channel=True)
-        
-        if len(result_names) > 1:
-            print(f'  {result_name}: PSNR = {cur_psnr:.4f}, SSIM = {cur_ssim:.4f}')
-        else:
-            print(f'{result_name} <-> {gt_name}: PSNR = {cur_psnr:.4f}, SSIM = {cur_ssim:.4f}')
-        
-        cumulative_psnr += cur_psnr
-        cumulative_ssim += cur_ssim
-        gt_psnr_sum += cur_psnr
-        gt_ssim_sum += cur_ssim
-        total_comparisons += 1
-    
-    if len(result_names) > 1:
-        print(f'  Average for this GT: PSNR = {gt_psnr_sum/len(result_names):.4f}, SSIM = {gt_ssim_sum/len(result_names):.4f}')
-
-if total_comparisons > 0:
-    print('\n' + '='*60)
-    print('Overall Results:')
-    print(f'  Total comparisons: {total_comparisons}')
-    print(f'  Average PSNR: {cumulative_psnr / total_comparisons:.4f}')
-    print(f'  Average SSIM: {cumulative_ssim / total_comparisons:.4f}')
-    print(f'  Results path: {results_path}')
-    print('='*60)
-else:
-    print("\nNo valid comparisons were made!")
-print(results_path)
+if __name__ == '__main__':
+    raise SystemExit(main())

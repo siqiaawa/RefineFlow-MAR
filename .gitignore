@@ -45,3 +45,17 @@ h5_hu_output/
 *.bak
 .github-public/
 
+# Local training runs and environments
+output/
+outputs/
+visualizations/
+.conda/
+.build/
+*.tmp
+*.log
+*.pid
+
+# Local results and figure materials are not part of source updates
+/test_results_dps_rf/
+/draw/
+

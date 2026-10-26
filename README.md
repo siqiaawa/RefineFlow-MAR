@@ -19,6 +19,11 @@ CBCT and couples it with continuous projection-domain physical guidance.
 
 </div>
 
+**Code availability:** `mar_pnp_rf.py`, `train_rectified_flow.py`, and
+`generate_pair_data.py` currently contain pseudocode outlines. Their complete
+implementations will be released after paper acceptance. Training, inference,
+and data-generation commands below document the intended full-release interfaces.
+
 ---
 
 ## Visual Results
@@ -145,10 +150,12 @@ CUDA_VISIBLE_DEVICES=0 python train_rectified_flow.py \
 Place the pretrained checkpoint at:
 
 ```text
-model/checkpoint-step0240000.pth
+model/checkpoint-step0200000.pth
 ```
 
-Checkpoint files are ignored by Git. See [model/README.md](model/README.md).
+The inference preset uses the selected step-200000 checkpoint and its
+`ema_params1` weights. Checkpoints are distributed separately and ignored by
+Git. See [model/README.md](model/README.md).
 
 ## Included Synthetic Data
 
@@ -184,12 +191,18 @@ data they provide.
 Configure these fields in `config/MAR_pnp_rf.yaml` for the target server:
 
 ```yaml
-model_path: /path/to/checkpoint-step0240000.pth
-data_path: /path/to/test_data/oral_ct
+model_path: ./model/checkpoint-step0200000.pth
+data_path: ./test_data/oral_ct
 save_dir: ./test_results_dps_rf
 ```
 
-Run inference with:
+The default synthetic-data preset uses native `512 x 512` images and
+`720 x 721` sinograms, a 400-grid Heun sampler starting at `t=0.5`, and seed
+`20260818`. The sampler runs to `t=1`, covering 200 integration intervals.
+Final refinement uses `hybrid_mask` with `projection_augmented` risk regions,
+threshold `0.3`, and 200 gradient updates at step size `0.01`.
+
+The full-release inference interface is:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python mar_pnp_rf.py \
@@ -202,7 +215,7 @@ Important configuration options include:
 | --- | --- |
 | `model_name` | JiT model registry key; the default is `JiT-B/16`. |
 | `image_size` | Reconstruction image size; included data uses `512`. |
-| `num_steps` | Number of rectified-flow integration steps. |
+| `num_steps` | Full [0,1] time-grid size; default 400, giving 200 intervals from `init_t=0.5`. |
 | `sampling_method` | `euler` or `heun`. |
 | `grad_mode` | `full` guidance gradient or lower-memory `approx`. |
 | `init_mode` | `noise` or `xli_blend`. |
@@ -247,16 +260,19 @@ Useful options include `--bit-depth 8`, `--bit-depth 16`, `--show-plot`,
 
 ## Evaluation
 
-`calculate_psnr_ssim.py` computes PSNR and SSIM for PNG results. Set its
-`gt_path` and `results_path` variables to the desired directories before
-running:
+`calculate_psnr_ssim.py` computes whole-image, Y-channel PSNR and SSIM for
+PNG results. Its defaults evaluate `test_results_dps_rf/` against
+`test_data/gtdata/`:
 
 ```bash
 python calculate_psnr_ssim.py
 ```
 
-It supports one-to-one matching when result and GT counts are equal, and
-many-to-one matching when multiple results share one GT.
+Use `--gt-path` and `--results-path` to select other directories, and
+`--output-csv` or `--output-json` to save the metrics. The script supports
+one-to-one matching when result and GT counts are equal, and many-to-one
+matching when multiple results share one GT. It retains the original OpenCV
+8-bit BGR reading and Y-channel formulas, without resizing or metal masking.
 
 ## Clinical Data Format
 
@@ -277,8 +293,8 @@ truth.
 
 ## Reproducibility Notes
 
-- YAML files contain example server paths and must be updated for another
-  server.
+- Inference presets use repository-relative paths. Set the training data path
+  and supply the matching checkpoint for your environment.
 - CUDA-backed projection components are initialized during pipeline startup.
 - `grad_mode: full`, 512 x 512 images, and long refinement runs can require
   substantial GPU memory.
